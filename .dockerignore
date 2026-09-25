@@ -1,0 +1,15 @@
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+venv/
+.git/
+.gitignore
+.env
+.env.*
+orders.db
+orders.db-wal
+orders.db-shm
+temp/
+.DS_Store

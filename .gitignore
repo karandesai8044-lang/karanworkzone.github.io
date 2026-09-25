@@ -1,0 +1,11 @@
+backend/service-account.json
+backend/client_secret.json
+backend/token.json
+backend/orders.db
+backend/orders.db-wal
+backend/orders.db-shm
+backend/temp/
+venv/
+__pycache__/
+*.pyc
+print-agent/watcher.log

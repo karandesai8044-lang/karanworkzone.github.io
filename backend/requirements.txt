@@ -1,0 +1,11 @@
+fastapi==0.115.0
+uvicorn[standard]==0.30.6
+python-multipart==0.0.9
+Pillow==10.4.0
+img2pdf==0.5.1
+rembg==2.0.59
+mediapipe==0.10.14
+numpy==1.26.4
+google-api-python-client==2.140.0
+google-auth==2.34.0
+google-auth-oauthlib==1.2.1
