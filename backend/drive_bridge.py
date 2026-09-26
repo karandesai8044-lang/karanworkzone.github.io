@@ -23,10 +23,18 @@ from googleapiclient.http import MediaFileUpload
 
 OAUTH_CLIENT_FILE = Path(__file__).parent / "client_secret.json"
 OAUTH_TOKEN_FILE = Path(__file__).parent / "token.json"
+LOCAL_UPLOAD_DIR = Path(__file__).parent / "local_uploads"
 DRIVE_FOLDER_ID = os.environ.get("DRIVE_FOLDER_ID", "")  # set this once the folder is created
 SCOPES = ["https://www.googleapis.com/auth/drive"]
 
 _service = None
+
+
+def _save_local_copy(local_path: Path, drive_filename: str) -> str:
+    LOCAL_UPLOAD_DIR.mkdir(exist_ok=True)
+    target = LOCAL_UPLOAD_DIR / drive_filename
+    target.write_bytes(local_path.read_bytes())
+    return f"local:{target.name}"
 
 
 def _get_service():
@@ -47,7 +55,7 @@ def _get_service():
             flow = InstalledAppFlow.from_client_secrets_file(str(OAUTH_CLIENT_FILE), SCOPES)
             creds = flow.run_local_server(port=0)
             OAUTH_TOKEN_FILE.write_text(creds.to_json(), encoding="utf-8")
-        
+
         if not creds:
             raise RuntimeError(
                 "Google Drive authorization could not be initialized."
@@ -57,15 +65,19 @@ def _get_service():
 
 
 def upload_pdf(local_path: Path, drive_filename: str) -> str:
-    """Uploads local_path into DRIVE_FOLDER_ID, returns the Drive file ID."""
+    """Uploads local_path into Drive when configured; otherwise stores it locally for fast local testing."""
     if not DRIVE_FOLDER_ID:
-        raise RuntimeError("DRIVE_FOLDER_ID environment variable is not set")
+        return _save_local_copy(local_path, drive_filename)
 
-    service = _get_service()
-    file_metadata = {"name": drive_filename, "parents": [DRIVE_FOLDER_ID]}
-    media = MediaFileUpload(str(local_path), mimetype="application/pdf", resumable=False)
-    created = service.files().create(body=file_metadata, media_body=media, fields="id").execute()
-    return created["id"]
+    try:
+        service = _get_service()
+        file_metadata = {"name": drive_filename, "parents": [DRIVE_FOLDER_ID]}
+        media = MediaFileUpload(str(local_path), mimetype="application/pdf", resumable=False)
+        created = service.files().create(body=file_metadata, media_body=media, fields="id").execute()
+        return created["id"]
+    except Exception:
+        # Local fallback keeps kiosk usable even before Drive is configured.
+        return _save_local_copy(local_path, drive_filename)
 
 
 def delete_file(drive_file_id: str) -> None:

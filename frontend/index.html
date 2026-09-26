@@ -204,7 +204,17 @@
 </main>
 
 <script>
-const API_BASE = ""; // same-origin; set to your deployed backend URL if serving frontend separately
+const API_BASE = (window.PRINT_KIOSK_API_BASE || "http://localhost:8000").replace(/\/$/, "");
+
+async function readJsonResponse(res) {
+  const text = await res.text();
+  if (!text) return {};
+  try {
+    return JSON.parse(text);
+  } catch (error) {
+    throw new Error(`Backend returned non-JSON response (${res.status}). Check the backend URL or server status.`);
+  }
+}
 
 const screens = {};
 document.querySelectorAll(".screen").forEach(s => screens[s.id] = s);
@@ -246,16 +256,16 @@ async function submitForm(endpoint, formEl) {
       if (value === "") formData.delete(key);
     }
     const res = await fetch(API_BASE + endpoint, { method: "POST", body: formData });
-    const data = await res.json();
+    const data = await readJsonResponse(res);
     if (!res.ok) {
       const detail = Array.isArray(data.detail)
         ? data.detail.map(item => item.msg || JSON.stringify(item)).join(", ")
         : data.detail;
-      throw new Error(detail || "Upload failed");
+      throw new Error(detail || `Upload failed (${res.status})`);
     }
     startStatusTracking(data.token);
   } catch (err) {
-    alert(err.message);
+    alert(err.message || "Upload failed");
   } finally {
     submitBtn.disabled = false;
     submitBtn.textContent = "Upload & Print";
@@ -293,7 +303,7 @@ function startStatusTracking(token) {
   async function poll() {
     try {
       const res = await fetch(`${API_BASE}/order/${token}/status`);
-      const data = await res.json();
+      const data = await readJsonResponse(res);
       pill.className = "status-pill " + data.status;
       pill.textContent = data.status;
       detail.textContent = messages[data.status] || "";
