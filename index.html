@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Print Kiosk</title>
+<style>
+  :root {
+    --primary: #2563eb;
+    --bg: #f7f8fa;
+    --card: #ffffff;
+    --text: #1a1a1a;
+    --muted: #6b7280;
+    --border: #e5e7eb;
+    --success: #16a34a;
+    --error: #dc2626;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg); color: var(--text);
+  }
+  header {
+    padding: 20px 16px 12px; text-align: center;
+  }
+  header h1 { margin: 0; font-size: 1.4rem; }
+  header p { margin: 4px 0 0; color: var(--muted); font-size: 0.9rem; }
+  main { max-width: 480px; margin: 0 auto; padding: 8px 16px 40px; }
+
+  .module-grid { display: grid; gap: 12px; margin-top: 16px; }
+  .module-card {
+    background: var(--card); border: 1px solid var(--border); border-radius: 14px;
+    padding: 18px; display: flex; align-items: center; gap: 14px; cursor: pointer;
+  }
+  .module-card:active { transform: scale(0.98); }
+  .module-card .icon { font-size: 1.8rem; }
+  .module-card h3 { margin: 0 0 2px; font-size: 1.05rem; }
+  .module-card p { margin: 0; color: var(--muted); font-size: 0.85rem; }
+
+  .screen { display: none; }
+  .screen.active { display: block; }
+
+  .back-btn {
+    background: none; border: none; color: var(--primary); font-size: 0.95rem;
+    padding: 8px 0; cursor: pointer;
+  }
+
+  .field { margin-bottom: 16px; }
+  .field label { display: block; font-size: 0.85rem; color: var(--muted); margin-bottom: 6px; }
+  .field input[type=text], .field input[type=number], .field select {
+    width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px;
+    font-size: 1rem; background: var(--card);
+  }
+  .file-drop {
+    border: 2px dashed var(--border); border-radius: 12px; padding: 24px; text-align: center;
+    color: var(--muted); background: var(--card);
+  }
+  .file-drop.has-file { border-color: var(--primary); color: var(--text); }
+  input[type=file] { width: 100%; margin-top: 8px; }
+
+  .toggle-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+  .row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+  .primary-btn {
+    width: 100%; padding: 14px; border: none; border-radius: 10px; background: var(--primary);
+    color: white; font-size: 1rem; font-weight: 600; cursor: pointer; margin-top: 8px;
+  }
+  .primary-btn:disabled { background: #93b4f0; }
+
+  .status-box {
+    background: var(--card); border: 1px solid var(--border); border-radius: 14px;
+    padding: 28px 20px; text-align: center; margin-top: 24px;
+  }
+  .status-token { font-size: 1.6rem; font-weight: 700; letter-spacing: 2px; margin: 6px 0 18px; }
+  .status-pill {
+    display: inline-block; padding: 6px 16px; border-radius: 999px; font-size: 0.85rem; font-weight: 600;
+  }
+  .status-pill.uploaded, .status-pill.converting { background: #fef3c7; color: #92400e; }
+  .status-pill.queued, .status-pill.printing { background: #dbeafe; color: #1e40af; }
+  .status-pill.printed { background: #dcfce7; color: #166534; }
+  .status-pill.error, .status-pill.expired { background: #fee2e2; color: #991b1b; }
+
+  .error-text { color: var(--error); font-size: 0.85rem; margin-top: 8px; }
+  .hint { font-size: 0.78rem; color: var(--muted); margin-top: 6px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>🖨️ Print Kiosk</h1>
+  <p>Scan, upload, done — no USB, no waiting at the counter</p>
+</header>
+<main>
+
+  <!-- Home screen -->
+  <section id="screen-home" class="screen active">
+    <div class="module-grid">
+      <div class="module-card" data-module="document">
+        <div class="icon">📄</div>
+        <div><h3>Document Print</h3><p>PDF, Word, PPT, Excel — copies, color, pages</p></div>
+      </div>
+      <div class="module-card" data-module="id_card">
+        <div class="icon">🪪</div>
+        <div><h3>ID Card Print</h3><p>Front + back on one page</p></div>
+      </div>
+      <div class="module-card" data-module="photo">
+        <div class="icon">🧑‍💼</div>
+        <div><h3>Passport Photo</h3><p>Auto background removal + face crop</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Document module -->
+  <section id="screen-document" class="screen">
+    <button class="back-btn" data-back>&larr; Back</button>
+    <h2>Document Print</h2>
+    <form id="form-document">
+      <div class="field">
+        <label>File (PDF, DOCX, PPTX, XLSX, JPG, PNG)</label>
+        <div class="file-drop" id="drop-document">Tap to choose a file
+          <input type="file" name="file" id="file-document" required accept=".pdf,.docx,.pptx,.xlsx,.jpg,.jpeg,.png">
+        </div>
+      </div>
+      <div class="row-2">
+        <div class="field"><label>Copies</label><input type="number" name="copies" min="1" max="100" value="1"></div>
+        <div class="field"><label>Orientation</label>
+          <select name="orientation"><option value="portrait">Portrait</option><option value="landscape">Landscape</option></select>
+        </div>
+      </div>
+      <div class="toggle-row">
+        <label for="color-document">Print in color</label>
+        <input type="checkbox" name="color" id="color-document">
+      </div>
+      <div class="field">
+        <label>Page range (optional, e.g. 1-3, 5)</label>
+        <input type="text" name="page_range" placeholder="Leave blank for all pages">
+      </div>
+      <button class="primary-btn" type="submit">Upload & Print</button>
+    </form>
+  </section>
+
+  <!-- ID card module -->
+  <section id="screen-id_card" class="screen">
+    <button class="back-btn" data-back>&larr; Back</button>
+    <h2>ID Card Print</h2>
+    <form id="form-id_card">
+      <div class="field">
+        <label>Front of card</label>
+        <div class="file-drop">Tap to choose <input type="file" name="front" required accept="image/*" capture="environment"></div>
+      </div>
+      <div class="field">
+        <label>Back of card</label>
+        <div class="file-drop">Tap to choose <input type="file" name="back" required accept="image/*" capture="environment"></div>
+      </div>
+      <p class="hint">Both sides will be printed to real CR80 card size on one A4 sheet with a cut line.</p>
+      <button class="primary-btn" type="submit">Upload & Print</button>
+    </form>
+  </section>
+
+  <!-- Photo module -->
+  <section id="screen-photo" class="screen">
+    <button class="back-btn" data-back>&larr; Back</button>
+    <h2>Passport-size Photo</h2>
+    <form id="form-photo">
+      <div class="field">
+        <label>Photo</label>
+        <div class="file-drop">Tap to choose <input type="file" name="file" required accept="image/*" capture="environment"></div>
+      </div>
+      <div class="field">
+        <label>Size</label>
+        <select name="preset" id="preset-photo">
+          <option value="indian_passport">Indian Passport (35×45mm)</option>
+          <option value="pan_card">PAN Card (25×35mm)</option>
+          <option value="voter_id">Voter ID (25×35mm)</option>
+          <option value="us_visa">US Visa / Passport (2×2in)</option>
+          <option value="custom">Custom size</option>
+        </select>
+      </div>
+      <div class="row-2" id="custom-size-row" style="display:none">
+        <div class="field"><label>Width (mm)</label><input type="number" name="custom_width_mm" step="0.1"></div>
+        <div class="field"><label>Height (mm)</label><input type="number" name="custom_height_mm" step="0.1"></div>
+      </div>
+      <div class="row-2">
+        <div class="field"><label>Background</label>
+          <select name="bg_color"><option value="white">White</option><option value="light_blue">Light Blue</option></select>
+        </div>
+        <div class="field"><label>Copies on 4x6 landscape sheet (35x45mm passport size, max 8)</label><input type="number" name="copies" min="1" max="8" value="8"></div>
+      </div>
+      <button class="primary-btn" type="submit">Upload & Print</button>
+    </form>
+  </section>
+
+  <!-- Status screen -->
+  <section id="screen-status" class="screen">
+    <div class="status-box">
+      <div style="color:var(--muted); font-size:0.85rem;">Your order</div>
+      <div class="status-token" id="status-token">------</div>
+      <span class="status-pill" id="status-pill">uploaded</span>
+      <div id="status-detail" style="margin-top:14px; font-size:0.9rem; color:var(--muted);"></div>
+      <div id="status-error" class="error-text"></div>
+    </div>
+    <button class="back-btn" style="margin-top:16px;" data-home>Start a new print</button>
+  </section>
+
+</main>
+
+<script>
+const API_BASE = ""; // same-origin; set to your deployed backend URL if serving frontend separately
+
+const screens = {};
+document.querySelectorAll(".screen").forEach(s => screens[s.id] = s);
+function showScreen(id) {
+  Object.values(screens).forEach(s => s.classList.remove("active"));
+  screens[id].classList.add("active");
+}
+
+document.querySelectorAll(".module-card").forEach(card => {
+  card.addEventListener("click", () => showScreen("screen-" + card.dataset.module));
+});
+document.querySelectorAll("[data-back], [data-home]").forEach(btn => {
+  btn.addEventListener("click", () => showScreen("screen-home"));
+});
+
+document.querySelectorAll(".file-drop input[type=file]").forEach(input => {
+  input.addEventListener("change", () => {
+    const drop = input.closest(".file-drop");
+    if (input.files.length) {
+      drop.classList.add("has-file");
+      drop.firstChild.textContent = input.files[0].name;
+    }
+  });
+});
+
+document.getElementById("preset-photo").addEventListener("change", (e) => {
+  document.getElementById("custom-size-row").style.display = e.target.value === "custom" ? "grid" : "none";
+});
+
+let pollTimer = null;
+
+async function submitForm(endpoint, formEl) {
+  const submitBtn = formEl.querySelector("button[type=submit]");
+  submitBtn.disabled = true;
+  submitBtn.textContent = "Uploading...";
+  try {
+    const formData = new FormData(formEl);
+    for (const [key, value] of formData.entries()) {
+      if (value === "") formData.delete(key);
+    }
+    const res = await fetch(API_BASE + endpoint, { method: "POST", body: formData });
+    const data = await res.json();
+    if (!res.ok) {
+      const detail = Array.isArray(data.detail)
+        ? data.detail.map(item => item.msg || JSON.stringify(item)).join(", ")
+        : data.detail;
+      throw new Error(detail || "Upload failed");
+    }
+    startStatusTracking(data.token);
+  } catch (err) {
+    alert(err.message);
+  } finally {
+    submitBtn.disabled = false;
+    submitBtn.textContent = "Upload & Print";
+  }
+}
+
+document.getElementById("form-document").addEventListener("submit", e => {
+  e.preventDefault(); submitForm("/upload/document", e.target);
+});
+document.getElementById("form-id_card").addEventListener("submit", e => {
+  e.preventDefault(); submitForm("/upload/id_card", e.target);
+});
+document.getElementById("form-photo").addEventListener("submit", e => {
+  e.preventDefault(); submitForm("/upload/photo", e.target);
+});
+
+function startStatusTracking(token) {
+  showScreen("screen-status");
+  document.getElementById("status-token").textContent = token;
+  const pill = document.getElementById("status-pill");
+  const detail = document.getElementById("status-detail");
+  const errorEl = document.getElementById("status-error");
+
+  const messages = {
+    uploaded: "Received your file...",
+    converting: "Preparing your print...",
+    queued: "In the print queue...",
+    printing: "Printing now...",
+    printed: "Ready! Please collect at the counter.",
+    error: "Something went wrong.",
+    expired: "This order has expired.",
+  };
+
+  if (pollTimer) clearInterval(pollTimer);
+  async function poll() {
+    try {
+      const res = await fetch(`${API_BASE}/order/${token}/status`);
+      const data = await res.json();
+      pill.className = "status-pill " + data.status;
+      pill.textContent = data.status;
+      detail.textContent = messages[data.status] || "";
+      errorEl.textContent = data.error_message ? "Error: " + data.error_message : "";
+      if (["printed", "error", "expired"].includes(data.status)) {
+        clearInterval(pollTimer);
+      }
+    } catch (e) { /* transient network error, next tick retries */ }
+  }
+  poll();
+  pollTimer = setInterval(poll, 2500);
+}
+</script>
+</body>
+</html>
