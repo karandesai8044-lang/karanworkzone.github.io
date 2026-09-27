@@ -9,8 +9,6 @@ if str(BACKEND_DIR) not in sys.path:
 
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
-from fastapi.staticfiles import StaticFiles
 
 import db
 from routes import upload, order_status
@@ -58,12 +56,3 @@ def startup():
 def health():
     return {"ok": True}
 
-
-# Serve the frontend single-page app
-FRONTEND_DIR = Path(__file__).parent.parent / "frontend"
-if FRONTEND_DIR.exists():
-    app.mount("/static", StaticFiles(directory=FRONTEND_DIR), name="static")
-
-    @app.get("/")
-    def index():
-        return FileResponse(FRONTEND_DIR / "index.html")
